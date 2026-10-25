@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block titulo %}Factura N.º {{ factura.pk }}{% endblock %}
+{% block estilos %}
+<style>
+  .comprobante { max-width: 960px; margin: 0 auto; }
+  .dato-etiqueta { color: #6c757d; font-size: .82rem; }
+  @media print {
+    body { background: #fff !important; }
+    .barra-superior, .menu-lateral, .pie, .acciones-factura, .alert { display: none !important; }
+    .contenido { padding: 0 !important; }
+    .comprobante { max-width: none; }
+    .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+    a { color: inherit !important; text-decoration: none !important; }
+  }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="comprobante">
+  <div class="acciones-factura d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <a href="{% url 'facturacion:inicio' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver a facturación</a>
+    <button type="button" class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Imprimir comprobante</button>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body p-4 p-md-5">
+      <div class="d-flex flex-wrap justify-content-between gap-3 border-bottom pb-4 mb-4">
+        <div><div class="text-uppercase small text-muted fw-semibold mb-2">SoftQuijarro S.R.L.</div><h1 class="h3 mb-1">Comprobante de venta</h1><div class="text-muted">Ferretería · Registro interno de venta</div></div>
+        <div class="text-md-end"><div class="dato-etiqueta">NÚMERO DE FACTURA</div><div class="display-6 fw-bold">N.º {{ factura.pk }}</div><div class="text-muted">{{ factura.fecha|date:"d/m/Y H:i" }}</div></div>
+      </div>
+      <div class="row g-3 mb-4">
+        <div class="col-md-7"><div class="dato-etiqueta">CLIENTE</div><div class="fs-5 fw-semibold">{{ factura.cliente.nombre }}</div></div>
+        <div class="col-md-5"><div class="dato-etiqueta">NIT / CI</div><div class="fs-5">{{ factura.cliente.nit }}</div></div>
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead class="table-light"><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Precio unitario</th><th class="text-end">Subtotal</th></tr></thead>
+          <tbody>
+            {% for linea in factura.detalles.all %}
+            <tr><td>{{ linea.producto.nombre }}</td><td class="text-end">{{ linea.cantidad }}</td><td class="text-end text-nowrap">Bs {{ linea.precio_unitario|floatformat:2 }}</td><td class="text-end text-nowrap">Bs {{ linea.subtotal|floatformat:2 }}</td></tr>
+            {% empty %}<tr><td colspan="4" class="text-center text-muted">Esta factura no tiene líneas registradas.</td></tr>{% endfor %}
+          </tbody>
+          <tfoot><tr><th colspan="3" class="text-end fs-5">TOTAL</th><th class="text-end fs-5 text-nowrap">Bs {{ factura.total|floatformat:2 }}</th></tr></tfoot>
+        </table>
+      </div>
+      <div class="border-top pt-3 mt-4 text-center text-muted small">Gracias por su compra. Este documento es un comprobante interno del sistema y no sustituye una factura fiscal autorizada.</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,25 +1,66 @@
 {% extends "base.html" %}
 {% block titulo %}Facturación{% endblock %}
 {% block contenido %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 m-0"><i class="bi bi-receipt"></i> Facturación</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-1"><i class="bi bi-receipt-cutoff"></i> Facturación</h1>
+    <p class="text-muted mb-0">Consulta y administra las facturas de venta de la ferretería.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'facturacion:nueva' %}"><i class="bi bi-plus-circle me-1"></i> Nueva factura</a>
 </div>
 
-<div class="alert aviso-construccion small">
-  <i class="bi bi-cone-striped"></i> Módulo en construcción. El responsable agrega la pantalla para
-  emitir una factura, el cálculo del total y el descuento de stock (ver el backlog).
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-4">
+    <div class="card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="rounded-circle bg-primary-subtle text-primary p-3"><i class="bi bi-files fs-4"></i></span>
+      <div><div class="text-muted small">Facturas encontradas</div><div class="fs-4 fw-semibold">{{ cantidad_facturas }}</div></div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-4">
+    <div class="card shadow-sm h-100"><div class="card-body d-flex align-items-center gap-3">
+      <span class="rounded-circle bg-success-subtle text-success p-3"><i class="bi bi-cash-coin fs-4"></i></span>
+      <div><div class="text-muted small">Importe de la consulta</div><div class="fs-4 fw-semibold">Bs {{ total_historico|floatformat:2 }}</div></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-9"><label for="q" class="form-label">Buscar factura</label>
+        <input id="q" name="q" type="search" value="{{ busqueda }}" class="form-control" placeholder="Número de factura, nombre del cliente o NIT/CI">
+      </div>
+      <div class="col-md-3 d-flex gap-2"><button class="btn btn-outline-primary flex-grow-1" type="submit"><i class="bi bi-search"></i> Buscar</button>
+        <a class="btn btn-outline-secondary" href="{% url 'facturacion:inicio' %}" title="Limpiar búsqueda"><i class="bi bi-x-lg"></i></a></div>
+    </form>
+  </div>
 </div>
 
 <div class="card shadow-sm">
-  <table class="table table-hover mb-0">
-    <thead class="table-light"><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th class="text-end">Total (Bs)</th></tr></thead>
-    <tbody>
-      {% for f in facturas %}
-      <tr><td>{{ f.pk }}</td><td>{{ f.fecha|date:"d/m/Y H:i" }}</td><td>{{ f.cliente.nombre }}</td><td class="text-end">{{ f.total }}</td></tr>
-      {% empty %}
-      <tr><td colspan="4" class="text-muted">No hay facturas emitidas.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light"><tr><th>N.º</th><th>Fecha y hora</th><th>Cliente</th><th>NIT / CI</th><th class="text-end">Total (Bs)</th><th class="text-end">Acción</th></tr></thead>
+      <tbody>
+        {% for f in facturas %}
+        <tr>
+          <td class="fw-semibold">{{ f.pk }}</td><td>{{ f.fecha|date:"d/m/Y H:i" }}</td><td>{{ f.cliente.nombre }}</td><td>{{ f.cliente.nit }}</td>
+          <td class="text-end text-nowrap">Bs {{ f.total|floatformat:2 }}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'facturacion:detalle' f.pk %}"><i class="bi bi-eye"></i> Ver</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-5"><i class="bi bi-receipt display-6 d-block mb-2"></i>{% if busqueda %}No se encontraron facturas con esa búsqueda.{% else %}Todavía no hay facturas emitidas. Usa «Nueva factura» para registrar la primera venta.{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if facturas.has_other_pages %}
+  <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+    <small class="text-muted">Página {{ facturas.number }} de {{ facturas.paginator.num_pages }}</small>
+    <div class="btn-group">
+      {% if facturas.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?q={{ busqueda|urlencode }}&page={{ facturas.previous_page_number }}">Anterior</a>{% endif %}
+      {% if facturas.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?q={{ busqueda|urlencode }}&page={{ facturas.next_page_number }}">Siguiente</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

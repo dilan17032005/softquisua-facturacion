@@ -8,7 +8,7 @@ class FacturacionConfig(AppConfig):
 
     # ── Datos para el menú y el tablero. Estos SÍ los cambias tú ──────────
     responsable = "Sin asignar"          # ← escribe tu nombre
-    estado = "en construcción"           # ← cámbialo a "listo" al terminar
+    estado = "listo"           # ← cámbialo a "listo" al terminar
     icono = "bi-receipt"
     descripcion = "Emisión de facturas: cliente, productos, total y descuento de stock."
     url_inicio = "facturacion:inicio"

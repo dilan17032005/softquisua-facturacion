@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block titulo %}Nueva factura{% endblock %}
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+  <div><h1 class="h3 mb-1"><i class="bi bi-file-earmark-plus"></i> Nueva factura</h1><p class="text-muted mb-0">Selecciona el cliente y agrega los productos vendidos.</p></div>
+  <a href="{% url 'facturacion:inicio' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver</a>
+</div>
+
+{% if error_stock %}<div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error_stock }}</div>{% endif %}
+{% if formulario.errors or formulario_detalles.non_form_errors %}
+<div class="alert alert-danger"><strong>No se pudo emitir la factura.</strong> Revisa los campos indicados y vuelve a intentarlo.</div>
+{% endif %}
+
+<form method="post" id="factura-form" novalidate>
+  {% csrf_token %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-person-vcard me-2"></i>Datos del cliente</div>
+    <div class="card-body">
+      <label for="id_cliente" class="form-label">Cliente <span class="text-danger">*</span></label>
+      {{ formulario.cliente }}
+      {% for error in formulario.cliente.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+      {% if not formulario.cliente.field.queryset.exists %}<div class="form-text text-warning">No hay clientes registrados. Primero debe registrarse el cliente en el módulo Clientes.</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+      <span class="fw-semibold"><i class="bi bi-cart3 me-2"></i>Productos de la venta</span>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="agregar-linea"><i class="bi bi-plus-lg"></i> Agregar producto</button>
+    </div>
+    <div class="card-body">
+      {{ formulario_detalles.management_form }}
+      {% if formulario_detalles.non_form_errors %}<div class="text-danger small mb-3">{{ formulario_detalles.non_form_errors }}</div>{% endif %}
+      <div class="table-responsive">
+        <table class="table align-middle" id="tabla-detalles">
+          <thead class="table-light"><tr><th style="min-width:250px">Producto</th><th style="width:140px">Cantidad</th><th style="width:150px" class="text-end">Precio unitario</th><th style="width:150px" class="text-end">Subtotal estimado</th><th style="width:70px"></th></tr></thead>
+          <tbody id="lineas-container">
+            {% for form in formulario_detalles %}
+            <tr class="linea-producto">
+              <td>{{ form.producto }}{% for error in form.producto.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</td>
+              <td>{{ form.cantidad }}{% for error in form.cantidad.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</td>
+              <td class="text-end precio-unitario">—</td><td class="text-end subtotal-linea">Bs 0,00</td>
+              <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger quitar-linea" title="Quitar producto"><i class="bi bi-trash"></i></button>{{ form.DELETE.as_hidden }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-end border-top pt-3"><div class="text-end"><div class="text-muted small">TOTAL DE LA FACTURA</div><div class="fs-3 fw-bold" id="total-estimado">Bs 0,00</div><div class="small text-muted">El total definitivo se calcula en el servidor.</div></div></div>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap justify-content-end gap-2 mb-4">
+    <a href="{% url 'facturacion:inicio' %}" class="btn btn-light">Cancelar</a>
+    <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-check-circle me-1"></i> Emitir factura</button>
+  </div>
+</form>
+
+<template id="plantilla-linea">
+  <tr class="linea-producto">
+    <td>{{ formulario_detalles.empty_form.producto }}</td><td>{{ formulario_detalles.empty_form.cantidad }}</td>
+    <td class="text-end precio-unitario">—</td><td class="text-end subtotal-linea">Bs 0,00</td>
+    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger quitar-linea" title="Quitar producto"><i class="bi bi-trash"></i></button>{{ formulario_detalles.empty_form.DELETE.as_hidden }}</td>
+  </tr>
+</template>
+{% endblock %}
+
+{% block scripts %}
+{{ productos_json|json_script:"catalogo-productos" }}
+<script>
+(() => {
+  const container = document.getElementById('lineas-container');
+  const totalForms = document.getElementById('id_detalles-TOTAL_FORMS');
+  const template = document.getElementById('plantilla-linea');
+  const productos = JSON.parse(document.getElementById('catalogo-productos').textContent);
+
+  // La lista de precios se obtiene del catálogo y solo se usa para mostrar una estimación.
+  const precios = {};
+  productos.forEach(p => precios[String(p.id)] = Number(p.precio));
+  const dinero = valor => 'Bs ' + valor.toLocaleString('es-BO', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+  function recalcular() {
+    let total = 0;
+    container.querySelectorAll('.linea-producto').forEach(fila => {
+      if (fila.classList.contains('d-none')) return;
+      const producto = fila.querySelector('.producto-select');
+      const cantidad = fila.querySelector('.cantidad-input');
+      const id = producto ? producto.value : '';
+      const precio = precios[id];
+      const unidades = Number(cantidad && cantidad.value) || 0;
+      fila.querySelector('.precio-unitario').textContent = precio === undefined ? '—' : dinero(precio);
+      const subtotal = precio === undefined ? 0 : precio * unidades;
+      fila.querySelector('.subtotal-linea').textContent = dinero(subtotal);
+      total += subtotal;
+    });
+    document.getElementById('total-estimado').textContent = dinero(total);
+  }
+
+  function actualizarIndices(fila, indice) {
+    fila.querySelectorAll('input, select, label').forEach(elemento => {
+      ['name', 'id', 'for'].forEach(atributo => {
+        const valor = elemento.getAttribute(atributo);
+        if (valor) elemento.setAttribute(atributo, valor.replace(/detalles-(?:\d+|__prefix__)-/g, `detalles-${indice}-`));
+      });
+    });
+  }
+
+  document.getElementById('agregar-linea').addEventListener('click', () => {
+    const indice = Number(totalForms.value);
+    const html = template.innerHTML.replace(/__prefix__/g, indice);
+    const temporal = document.createElement('tbody');
+    temporal.innerHTML = html.trim();
+    const fila = temporal.firstElementChild;
+    actualizarIndices(fila, indice);
+    container.appendChild(fila);
+    totalForms.value = indice + 1;
+    recalcular();
+  });
+
+  container.addEventListener('change', recalcular);
+  container.addEventListener('input', recalcular);
+  container.addEventListener('click', evento => {
+    const boton = evento.target.closest('.quitar-linea');
+    if (!boton) return;
+    const fila = boton.closest('.linea-producto');
+    const eliminar = fila.querySelector('input[name$="-DELETE"]');
+    if (eliminar) {
+      eliminar.value = 'on';
+      fila.classList.add('d-none');
+    } else {
+      fila.remove();
+    }
+    recalcular();
+  });
+  recalcular();
+})();
+</script>
+{% endblock %}
